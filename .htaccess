@@ -1,0 +1,291 @@
+## Default index file
+DirectoryIndex index.php
+
+## Hide server info in headers
+#ServerTokens Prod
+ServerSignature Off
+
+## Do not allow apache indexes
+Options -Indexes
+
+# Allow cross-origin access to web fonts.
+<IfModule mod_headers.c>
+    <FilesMatch "\.(eot|otf|tt[cf]|woff2?)$">
+        Header set Access-Control-Allow-Origin "*"
+    </FilesMatch>
+</IfModule>
+
+
+<IfModule mod_php5.c>
+	php_value memory_limit 256M
+	php_value max_execution_time 180
+
+	## disable magic quotes for php request vars
+    php_flag magic_quotes_gpc off
+
+	## disable automatic session start
+    php_flag session.auto_start off
+
+	## enable resulting html compression
+   php_flag zlib.output_compression on
+
+	## disable user agent verification to not break multiple image upload
+    php_flag suhosin.session.cryptua off
+
+	## turn off compatibility with PHP4 when dealing with objects
+    php_flag zend.ze1_compatibility_mode Off
+</IfModule>
+
+<IfModule mod_security.c>
+	## disable POST processing to not break multiple image upload
+    SecFilterEngine Off
+    SecFilterScanPOST Off
+</IfModule>
+
+<IfModule mod_deflate.c>
+
+    ## Force compression for mangled `Accept-Encoding` request headers
+    <IfModule mod_setenvif.c>
+        <IfModule mod_headers.c>
+            SetEnvIfNoCase ^(Accept-EncodXng|X-cept-Encoding|X{15}|~{15}|-{15})$ ^((gzip|deflate)\s*,?\s*)+|[X~-]{4,13}$ HAVE_Accept-Encoding
+            RequestHeader append Accept-Encoding "gzip,deflate" env=HAVE_Accept-Encoding
+        </IfModule>
+    </IfModule>
+    
+    ## Compress all output labeled with one of the following media types.
+    <IfModule mod_filter.c>
+        AddOutputFilterByType DEFLATE "application/atom+xml" \
+                                      "application/javascript" \
+                                      "application/json" \
+                                      "application/ld+json" \
+                                      "application/manifest+json" \
+                                      "application/rdf+xml" \
+                                      "application/rss+xml" \
+                                      "application/schema+json" \
+                                      "application/vnd.geo+json" \
+                                      "application/vnd.ms-fontobject" \
+                                      "application/x-font-ttf" \
+                                      "application/x-javascript" \
+                                      "application/x-web-app-manifest+json" \
+                                      "application/xhtml+xml" \
+                                      "application/xml" \
+                                      "font/eot" \
+                                      "font/opentype" \
+                                      "image/bmp" \
+                                      "image/svg+xml" \
+                                      "image/vnd.microsoft.icon" \
+                                      "image/x-icon" \
+                                      "text/cache-manifest" \
+                                      "text/css" \
+                                      "text/html" \
+                                      "text/javascript" \
+                                      "text/plain" \
+                                      "text/vcard" \
+                                      "text/vnd.rim.location.xloc" \
+                                      "text/vtt" \
+                                      "text/x-component" \
+                                      "text/x-cross-domain-policy" \
+                                      "text/xml"
+
+    </IfModule>
+
+    ## Map the following filename extensions to the specified
+    ## encoding type in order to make Apache serve the file types
+    ## with the appropriate `Content-Encoding` response header
+    ## (do note that this will NOT make Apache compress them!).
+    <IfModule mod_mime.c>
+        AddEncoding gzip              svgz
+    </IfModule>
+
+</IfModule>
+
+
+<IfModule mod_ssl.c>
+	## make HTTPS env vars available for CGI mode
+    SSLOptions StdEnvVars
+</IfModule>
+
+
+<IfModule mod_rewrite.c>
+
+    Options +FollowSymLinks
+    RewriteEngine on
+
+    #RewriteBase /magento/
+
+	## light API calls processing
+	#RewriteRule ^api/([a-z][0-9a-z_]+)/?$ api.php?type=$1 [QSA,L]
+
+	## rewrite API2 calls to api.php (by now it is REST only)
+    RewriteRule ^api/rest api.php?type=rest [QSA,L]
+
+	## workaround for HTTP authorization in CGI environment
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+	## TRACE and TRACK HTTP methods disabled to prevent XSS attacks
+    RewriteCond %{REQUEST_METHOD} ^TRAC[EK]
+    RewriteRule .* - [L,R=405]
+    
+    ## Disallow access to files in the downloader dir
+    RewriteRule ^downloader/(.*)$ /$1 [R=403,NC,L]
+    
+    
+    ## Force HTTPS
+	#RewriteCond %{HTTPS} !=on
+	#RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+	
+	## Non www to www.
+	#RewriteCond %{HTTPS} !=on
+	#RewriteCond %{HTTP_HOST} !^www\. [NC]
+	#RewriteCond %{SERVER_ADDR} !=127.0.0.1
+	#RewriteCond %{SERVER_ADDR} !=::1
+	#RewriteRule ^ %{ENV:PROTO}://www.%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+	
+	## www. to Non www
+    #RewriteCond %{HTTPS} !=on
+    #RewriteCond %{HTTP_HOST} ^www\.(.+)$ [NC]
+    #RewriteRule ^ %{ENV:PROTO}://%1%{REQUEST_URI} [R=301,L]
+    
+    
+	## always send 404 on missing files in these folders
+    RewriteCond %{REQUEST_URI} !^/(media|skin|js)/
+
+	## never rewrite for existing files, directories and links
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-l
+
+	## rewrite everything else to index.php
+    RewriteRule .* index.php [L]
+
+</IfModule>
+
+
+## Prevent character encoding issues from server overrides, second line is ofr persisiting issues
+AddDefaultCharset Off
+#AddDefaultCharset UTF-8
+
+
+## xpires headers
+<IfModule mod_expires.c>
+
+    ExpiresActive on
+    ExpiresDefault                                      "access plus 1 month"
+
+  # CSS
+
+    ExpiresByType text/css                              "access plus 1 year"
+
+
+  # Data interchange
+
+    ExpiresByType application/atom+xml                  "access plus 1 hour"
+    ExpiresByType application/rdf+xml                   "access plus 1 hour"
+    ExpiresByType application/rss+xml                   "access plus 1 hour"
+
+    ExpiresByType application/json                      "access plus 0 seconds"
+    ExpiresByType application/ld+json                   "access plus 0 seconds"
+    ExpiresByType application/schema+json               "access plus 0 seconds"
+    ExpiresByType application/vnd.geo+json              "access plus 0 seconds"
+    ExpiresByType application/xml                       "access plus 0 seconds"
+    ExpiresByType text/xml                              "access plus 0 seconds"
+
+
+  # Favicon (cannot be renamed!) and cursor images
+
+    ExpiresByType image/vnd.microsoft.icon              "access plus 1 week"
+    ExpiresByType image/x-icon                          "access plus 1 week"
+
+  # HTML
+
+    ExpiresByType text/html                             "access plus 0 seconds"
+
+
+  # JavaScript
+
+    ExpiresByType application/javascript                "access plus 1 year"
+    ExpiresByType application/x-javascript              "access plus 1 year"
+    ExpiresByType text/javascript                       "access plus 1 year"
+
+
+  # Manifest files
+
+    ExpiresByType application/manifest+json             "access plus 1 week"
+    ExpiresByType application/x-web-app-manifest+json   "access plus 0 seconds"
+    ExpiresByType text/cache-manifest                   "access plus 0 seconds"
+
+
+  # Media files
+
+    ExpiresByType audio/ogg                             "access plus 1 month"
+    ExpiresByType image/bmp                             "access plus 1 month"
+    ExpiresByType image/gif                             "access plus 1 month"
+    ExpiresByType image/jpeg                            "access plus 1 month"
+    ExpiresByType image/png                             "access plus 1 month"
+    ExpiresByType image/svg+xml                         "access plus 1 month"
+    ExpiresByType image/webp                            "access plus 1 month"
+    ExpiresByType video/mp4                             "access plus 1 month"
+    ExpiresByType video/ogg                             "access plus 1 month"
+    ExpiresByType video/webm                            "access plus 1 month"
+
+
+  # Web fonts
+
+    # Embedded OpenType (EOT)
+    ExpiresByType application/vnd.ms-fontobject         "access plus 1 month"
+    ExpiresByType font/eot                              "access plus 1 month"
+
+    # OpenType
+    ExpiresByType font/opentype                         "access plus 1 month"
+
+    # TrueType
+    ExpiresByType application/x-font-ttf                "access plus 1 month"
+
+    # Web Open Font Format (WOFF) 1.0
+    ExpiresByType application/font-woff                 "access plus 1 month"
+    ExpiresByType application/x-font-woff               "access plus 1 month"
+    ExpiresByType font/woff                             "access plus 1 month"
+
+    # Web Open Font Format (WOFF) 2.0
+    ExpiresByType application/font-woff2                "access plus 1 month"
+
+
+  # Other
+
+    ExpiresByType text/x-cross-domain-policy            "access plus 1 week"
+
+</IfModule>
+
+
+# `FileETag None` doesn't work in all cases.
+<IfModule mod_headers.c>
+    Header unset ETag
+</IfModule>
+
+FileETag None
+
+
+## By default allow all access
+Order allow,deny
+Allow from all
+
+## Deny access sensitive files
+<Files RELEASE_NOTES.txt>
+    Order allow,deny
+    Deny from all
+    Satisfy All
+</Files>
+
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+    Satisfy All
+</FilesMatch>
+
+#<FilesMatch ".(bak|sql|log|sh|gz|zip|sample)$">
+<FilesMatch ".(bak|log|sh|gz|zip|sample)$">
+    Order allow,deny
+    Deny from all
+    Satisfy All
+</FilesMatch>
+
